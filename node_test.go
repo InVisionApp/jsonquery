@@ -3,7 +3,6 @@ package jsonquery
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"path"
 	"sort"
@@ -184,10 +183,10 @@ func TestLargeFloat(t *testing.T) {
 func TestJSON(t *testing.T) {
 	files := []string{
 		"basic.json",
-		//"screen_v3_01.json",
-		//"screen_v3_02.json",
-		//"screen_v3_03.json",
-		//"screen_v3_04.json",
+		"screen_v3_01.json",
+		"screen_v3_02.json",
+		"screen_v3_03.json",
+		"screen_v3_04.json",
 	}
 
 	for _, file := range files {
@@ -228,7 +227,6 @@ func TestJSON(t *testing.T) {
 					string(docJSONBytes),
 				)
 			}
-			fmt.Println(string(docJSONBytes))
 		})
 	}
 }
@@ -326,7 +324,7 @@ func TestSkipped(t *testing.T) {
 			t.Fatalf("Expected doc to have 3 children but got only %d", len(doc.ChildNodes()))
 		}
 
-		doc.ChildNodes()[0].Skipped()
+		doc.ChildNodes()[0].SetSkipped(true)
 		i, err := doc.JSON(true)
 		if err != nil {
 			t.Fatal(err)
@@ -363,7 +361,7 @@ func TestSkipped(t *testing.T) {
 			t.Fatalf("Expected nodes to have 3 items, but got only %d", len(nodes))
 		}
 
-		nodes[0].Skipped()
+		nodes[0].SetSkipped(true)
 		i, err := doc.JSON(true)
 		if err != nil {
 			t.Fatal(err)
