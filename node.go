@@ -75,6 +75,14 @@ func (n *Node) InnerText() string {
 	return buf.String()
 }
 
+func (n *Node) GetParent(level int) *Node {
+	if n.Parent.level == level {
+		return n.Parent
+	}
+
+	return n.Parent.GetParent(level)
+}
+
 func (n *Node) InnerData() interface{} {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		return child.InnerData()
@@ -91,49 +99,12 @@ func (n *Node) SetInnerData(idata interface{}) {
 	n.idata = idata
 }
 
-func (n *Node) GetParent(level int) *Node {
-	if n.Parent.level == level {
-		return n.Parent
-	}
-
-	return n.Parent.GetParent(level)
+func (n *Node) SetSkipped(skipped bool) {
+	n.skipped = skipped
 }
 
-func (n *Node) Skipped() {
-	n.skipped = true
-}
-
-func outputXML(buf *bytes.Buffer, n *Node) {
-	switch n.Type {
-	case ElementNode:
-		if n.Data == "" {
-			buf.WriteString("<element>")
-		} else {
-			buf.WriteString("<" + n.Data + ">")
-		}
-	case TextNode:
-		buf.WriteString(n.Data)
-		return
-	}
-
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		outputXML(buf, child)
-	}
-	if n.Data == "" {
-		buf.WriteString("</element>")
-	} else {
-		buf.WriteString("</" + n.Data + ">")
-	}
-}
-
-// OutputXML prints the XML string.
-func (n *Node) OutputXML() string {
-	var buf bytes.Buffer
-	buf.WriteString(`<?xml version="1.0"?>`)
-	for n := n.FirstChild; n != nil; n = n.NextSibling {
-		outputXML(&buf, n)
-	}
-	return buf.String()
+func (n *Node) Skipped() bool {
+	return n.skipped
 }
 
 func (n *Node) JSON(skipped bool) (interface{}, error) {
@@ -190,6 +161,16 @@ func (n *Node) SelectElement(name string) *Node {
 	return nil
 }
 
+// OutputXML prints the XML string.
+func (n *Node) OutputXML() string {
+	var buf bytes.Buffer
+	buf.WriteString(`<?xml version="1.0"?>`)
+	for n := n.FirstChild; n != nil; n = n.NextSibling {
+		outputXML(&buf, n)
+	}
+	return buf.String()
+}
+
 // LoadURL loads the JSON document from the specified URL.
 func LoadURL(url string) (*Node, error) {
 	resp, err := http.Get(url)
@@ -198,6 +179,15 @@ func LoadURL(url string) (*Node, error) {
 	}
 	defer resp.Body.Close()
 	return Parse(resp.Body)
+}
+
+// Parse JSON document.
+func Parse(r io.Reader) (*Node, error) {
+	b, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+	return parse(b)
 }
 
 func parseValue(x interface{}, top *Node, level int) {
@@ -290,11 +280,25 @@ func parse(b []byte) (*Node, error) {
 	return doc, nil
 }
 
-// Parse JSON document.
-func Parse(r io.Reader) (*Node, error) {
-	b, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
+func outputXML(buf *bytes.Buffer, n *Node) {
+	switch n.Type {
+	case ElementNode:
+		if n.Data == "" {
+			buf.WriteString("<element>")
+		} else {
+			buf.WriteString("<" + n.Data + ">")
+		}
+	case TextNode:
+		buf.WriteString(n.Data)
+		return
 	}
-	return parse(b)
+
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		outputXML(buf, child)
+	}
+	if n.Data == "" {
+		buf.WriteString("</element>")
+	} else {
+		buf.WriteString("</" + n.Data + ">")
+	}
 }
