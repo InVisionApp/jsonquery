@@ -238,34 +238,88 @@ func TestFindAssetIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	doc, err := Parse(bytes.NewReader(originalBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run(`"*/asset_id"`, func(t *testing.T) {
+		t.Run("Only one item in array", func(t *testing.T) {
+			doc, err := Parse(bytes.NewReader(originalBytes))
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	strAssetIDs := []string{"4632", "4629", "4627", "4631", "4630"}
-	allNodes := Find(doc, "//layers//exportOptions//asset_id")
-	nodes := unique(allNodes)
+			allNodes := Find(doc, "*/asset_id")
+			nodes := unique(allNodes)
 
-	var assetIDs []string
-	if n := len(nodes); n != len(strAssetIDs) {
-		t.Fatalf("Expected %v nodes but got %v", n, len(strAssetIDs))
-	}
-	for _, n := range nodes {
-		if n.Data != "asset_id" {
-			t.Fatalf("Expected asset_id but got %s", n.Data)
+			if len(nodes) != 1 {
+				t.Fatalf("Expected nodes to have only 1 iteam but got %v", len(nodes))
+			}
+
+			if nodes[0].Data != "asset_id" {
+				t.Fatalf(`Expected Data to be "asset_id" but got %v`, nodes[0].Data)
+			}
+
+			if nodes[0].InnerData().(float64) != 0 {
+				t.Fatalf("Expected InnerData() to be 0 but got %v", nodes[0].InnerData())
+			}
+		})
+
+		t.Run("More than one item in array", func(t *testing.T) {
+			doc, err := Parse(strings.NewReader(`[{"id":1,"asset_id":1,"layers":[{"asset_id":11}]},{"id":2,"asset_id":2}]`))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			allNodes := Find(doc, "*/asset_id")
+			nodes := unique(allNodes)
+
+			strAssetIDs := []string{"1", "2"}
+			if len(nodes) != len(strAssetIDs) {
+				t.Fatalf("Expected nodes to have %v items but got %v", len(strAssetIDs), len(nodes))
+			}
+
+			var assetIDs []string
+			for _, node := range nodes {
+				assetIDs = append(assetIDs, fmt.Sprintf("%v", node.InnerData()))
+			}
+
+			sort.Strings(strAssetIDs)
+			sort.Strings(assetIDs)
+			for i := range strAssetIDs {
+				if strAssetIDs[i] != assetIDs[i] {
+					t.Fatalf("Expect %v to equal %v", strAssetIDs[i], assetIDs[i])
+				}
+			}
+		})
+	})
+
+	t.Run("//layers//exportOptions//asset_id", func(t *testing.T) {
+		doc, err := Parse(bytes.NewReader(originalBytes))
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		assetIDs = append(assetIDs, n.InnerText())
-	}
+		strAssetIDs := []string{"4632", "4629", "4627", "4631", "4630"}
+		allNodes := Find(doc, "//layers//exportOptions//asset_id")
+		nodes := unique(allNodes)
 
-	sort.Strings(strAssetIDs)
-	sort.Strings(assetIDs)
-	for i := range strAssetIDs {
-		if strAssetIDs[i] != assetIDs[i] {
-			t.Fatalf("Expected %+v to equal %+v", strAssetIDs[i], assetIDs[i])
+		var assetIDs []string
+		if n := len(nodes); n != len(strAssetIDs) {
+			t.Fatalf("Expected %v nodes but got %v", n, len(strAssetIDs))
 		}
-	}
+		for _, n := range nodes {
+			if n.Data != "asset_id" {
+				t.Fatalf("Expected asset_id but got %s", n.Data)
+			}
+
+			assetIDs = append(assetIDs, n.InnerText())
+		}
+
+		sort.Strings(strAssetIDs)
+		sort.Strings(assetIDs)
+		for i := range strAssetIDs {
+			if strAssetIDs[i] != assetIDs[i] {
+				t.Fatalf("Expected %+v to equal %+v", strAssetIDs[i], assetIDs[i])
+			}
+		}
+	})
 }
 
 func TestSetInnerDataAndInnerData(t *testing.T) {
@@ -359,7 +413,7 @@ func TestSetSkippedAndSkipped(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		nodes := Find(doc, "//userID")
+		nodes := Find(doc, "*/userID")
 		if len(nodes) != 3 {
 			t.Fatalf("Expected nodes to have 3 items, but got only %d", len(nodes))
 		}
