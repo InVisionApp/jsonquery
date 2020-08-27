@@ -3,6 +3,7 @@ package jsonquery
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path"
 	"sort"
@@ -242,19 +243,27 @@ func TestFindAssetIDs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	strAssetIDs := []string{"4629", "4627", "4631", "4630"}
+	strAssetIDs := []string{"4632", "4629", "4627", "4631", "4630"}
 	allNodes := Find(doc, "//layers//exportOptions//asset_id")
 	nodes := unique(allNodes)
 
-	if n := len(nodes); n != 4 {
-		t.Fatalf("Expected 4 nodes but got %v", n)
+	var assetIDs []string
+	if n := len(nodes); n != len(strAssetIDs) {
+		t.Fatalf("Expected %v nodes but got %v", n, len(strAssetIDs))
 	}
-	for i, n := range nodes {
+	for _, n := range nodes {
 		if n.Data != "asset_id" {
 			t.Fatalf("Expected asset_id but got %s", n.Data)
 		}
-		if n.InnerText() != strAssetIDs[i] {
-			t.Fatalf("Expected %s but got %s", strAssetIDs[i], n.InnerText())
+
+		assetIDs = append(assetIDs, n.InnerText())
+	}
+
+	sort.Strings(strAssetIDs)
+	sort.Strings(assetIDs)
+	for i := range strAssetIDs {
+		if strAssetIDs[i] != assetIDs[i] {
+			t.Fatalf("Expected %+v to equal %+v", strAssetIDs[i], assetIDs[i])
 		}
 	}
 }
@@ -277,40 +286,35 @@ func TestSetInnerDataAndInnerData(t *testing.T) {
 		t.Fatalf("Expected nodes to have %d items, but got only %d", len(strIDs), len(nodes))
 	}
 
-	parent := nodes[0].GetParent(1)
-	if 3 != len(parent.ChildNodes()) {
-		t.Fatalf("Expected node to have 3 children, but got only %d", len(parent.ChildNodes()))
-	}
-
-	fields := []struct {
-		key   string
-		value float64
-	}{
-		{key: "id", value: 1},
-		{key: "roleID", value: 3},
-		{key: "userID", value: 1},
-	}
-	for i, childNode := range parent.ChildNodes() {
-		if childNode.Data != fields[i].key {
-			t.Fatalf("Expected %s but got %s", childNode.Data, fields[i].key)
-		}
-
-		if childNode.InnerData() != fields[i].value {
-			t.Fatalf("Expected %v but got %g", childNode.InnerData(), fields[i].value)
-		}
-	}
-
 	for i, node := range nodes {
 		strID := strIDs[i]
-		node.SetInnerData(strID)
+		node.SetInnerData(strIDs[i])
 
 		if strID != node.InnerData() {
 			t.Fatalf("Expected %s but got %s", strID, node.InnerData())
 		}
 	}
+
+	idoc, err := doc.JSON(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	records := idoc.([]interface{})
+	if len(records) != 3 {
+		t.Fatalf("Expected records to have 3 items, but got %v", len(records))
+	}
+
+	for i, irecord := range records {
+		record := irecord.(map[string]interface{})
+
+		if strIDs[i] != fmt.Sprintf("%v", record["userID"]) {
+			t.Fatalf("Expected %v to equal %v", strIDs[i], fmt.Sprintf("%v", record["userID"]))
+		}
+	}
 }
 
-func TestSkipped(t *testing.T) {
+func TestSetSkippedAndSkipped(t *testing.T) {
 	b, err := ioutil.ReadFile(path.Join("testdata", "records.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -327,28 +331,25 @@ func TestSkipped(t *testing.T) {
 		}
 
 		doc.ChildNodes()[0].SetSkipped(true)
-		i, err := doc.JSON(true)
+		if !doc.ChildNodes()[0].Skipped() {
+			t.Fatalf("Expect record skipped to be true")
+		}
+
+		idoc, err := doc.JSON(true)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		b, err := json.Marshal(i)
-		if err != nil {
-			t.Fatal(err)
+		irecords := idoc.([]interface{})
+		if len(irecords) != 2 {
+			t.Fatalf("Expected records to have 2 items, but got only %d", len(irecords))
 		}
+		for _, irecord := range irecords {
+			record := irecord.(map[string]interface{})
 
-		var records []struct {
-			ID     *float64 `json:"id,omitempty"`
-			UserID *float64 `json:"userID,omitempty"`
-			RoleID *float64 `json:"roleID,omitempty"`
-		}
-		err = json.Unmarshal(b, &records)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if len(records) != 2 {
-			t.Fatalf("Expected records to have 3 items, but got only %d", len(records))
+			if "1" == fmt.Sprintf("%v", record["id"]) {
+				t.Fatalf("record with id 1 should be skipped")
+			}
 		}
 	})
 
