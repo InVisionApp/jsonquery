@@ -75,14 +75,6 @@ func (n *Node) InnerText() string {
 	return buf.String()
 }
 
-func (n *Node) GetParent(level int) *Node {
-	if n.Parent.level == level {
-		return n.Parent
-	}
-
-	return n.Parent.GetParent(level)
-}
-
 func (n *Node) InnerData() interface{} {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		return child.InnerData()
@@ -97,6 +89,9 @@ func (n *Node) SetInnerData(idata interface{}) {
 	}
 
 	n.idata = idata
+	if n.Type == TextNode {
+		n.Data = fmt.Sprintf("%v", idata)
+	}
 }
 
 func (n *Node) SetSkipped(skipped bool) {
@@ -105,6 +100,14 @@ func (n *Node) SetSkipped(skipped bool) {
 
 func (n *Node) Skipped() bool {
 	return n.skipped
+}
+
+func (n *Node) GetParent(level int) *Node {
+	if n.Parent.level == level {
+		return n.Parent
+	}
+
+	return n.Parent.GetParent(level)
 }
 
 func (n *Node) JSON(skipped bool) (interface{}, error) {
