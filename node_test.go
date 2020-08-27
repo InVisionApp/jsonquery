@@ -243,9 +243,11 @@ func TestFindAssetIDs(t *testing.T) {
 	}
 
 	strAssetIDs := []string{"4629", "4627", "4631", "4630"}
-	nodes := Find(doc, "/layers//exportOptions//asset_id")
+	allNodes := Find(doc, "//layers//exportOptions//asset_id")
+	nodes := unique(allNodes)
+
 	if n := len(nodes); n != 4 {
-		t.Fatalf("Expected 4 nodes but got only %v", n)
+		t.Fatalf("Expected 4 nodes but got %v", n)
 	}
 	for i, n := range nodes {
 		if n.Data != "asset_id" {
@@ -395,4 +397,18 @@ func TestSkipped(t *testing.T) {
 			t.Fatalf("Expected userID to be nil, but got %v", *records[0].UserID)
 		}
 	})
+}
+
+func unique(allNodes []*Node) []*Node {
+	var tmpMap = make(map[*Node]bool)
+	for _, node := range allNodes {
+		tmpMap[node] = true
+	}
+
+	var nodes []*Node
+	for node := range tmpMap {
+		nodes = append(nodes, node)
+	}
+
+	return nodes
 }
