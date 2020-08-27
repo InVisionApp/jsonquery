@@ -290,15 +290,14 @@ func TestFindAssetIDs(t *testing.T) {
 		})
 	})
 
-	t.Run("//layers//exportOptions//asset_id", func(t *testing.T) {
+	t.Run(`"*/layers//exportOptions//asset_id"`, func(t *testing.T) {
 		doc, err := Parse(bytes.NewReader(originalBytes))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		strAssetIDs := []string{"4632", "4629", "4627", "4631", "4630"}
-		allNodes := Find(doc, "//layers//exportOptions//asset_id")
-		nodes := unique(allNodes)
+		nodes := Find(doc, "*/layers//exportOptions//asset_id")
 
 		var assetIDs []string
 		if n := len(nodes); n != len(strAssetIDs) {
@@ -335,7 +334,7 @@ func TestSetInnerDataAndInnerData(t *testing.T) {
 
 	strIDs := []string{"100", "200", "300"}
 
-	nodes := Find(doc, "//userID")
+	nodes := Find(doc, "*/userID")
 	if len(strIDs) != len(nodes) {
 		t.Fatalf("Expected nodes to have %d items, but got only %d", len(strIDs), len(nodes))
 	}
