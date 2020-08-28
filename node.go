@@ -89,7 +89,7 @@ func (n *Node) SetInnerData(idata interface{}) {
 	}
 
 	n.idata = idata
-	if n.Type == TextNode {
+	if n.Type == TextNode && idata != nil {
 		n.Data = fmt.Sprintf("%v", idata)
 	}
 }
@@ -141,9 +141,13 @@ func (n *Node) JSON(skipped bool) (interface{}, error) {
 		}
 		return obj, nil
 	case float64Type:
+		if n.InnerData() == nil {
+			return nil, nil
+		}
+
 		return strconv.ParseFloat(n.InnerText(), 64)
 	case stringType:
-		return n.InnerText(), nil
+		return n.InnerData(), nil
 	case boolType:
 		return strconv.ParseBool(n.InnerText())
 	case nullType:

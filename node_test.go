@@ -327,44 +327,82 @@ func TestSetInnerDataAndInnerData(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	doc, err := Parse(bytes.NewReader(b))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	strIDs := []string{"100", "200", "300"}
-
-	nodes := Find(doc, "*/userID")
-	if len(strIDs) != len(nodes) {
-		t.Fatalf("Expected nodes to have %d items, but got only %d", len(strIDs), len(nodes))
-	}
-
-	for i, node := range nodes {
-		strID := strIDs[i]
-		node.SetInnerData(strIDs[i])
-
-		if strID != node.InnerData() {
-			t.Fatalf("Expected %s but got %s", strID, node.InnerData())
+	t.Run("data is nil", func(t *testing.T) {
+		doc, err := Parse(bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
 
-	idoc, err := doc.JSON(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	records := idoc.([]interface{})
-	if len(records) != 3 {
-		t.Fatalf("Expected records to have 3 items, but got %v", len(records))
-	}
-
-	for i, irecord := range records {
-		record := irecord.(map[string]interface{})
-
-		if strIDs[i] != fmt.Sprintf("%v", record["userID"]) {
-			t.Fatalf("Expected %v to equal %v", strIDs[i], fmt.Sprintf("%v", record["userID"]))
+		nodes := Find(doc, "*/userID")
+		if len(nodes) != 3 {
+			t.Fatalf("Expected nodes to have 3 items, but got only %d", len(nodes))
 		}
-	}
+
+		for _, node := range nodes {
+			node.SetInnerData(nil)
+
+			if node.InnerData() != nil {
+				t.Fatalf("Expected nil but got %s", node.InnerData())
+			}
+		}
+
+		idoc, err := doc.JSON(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		records := idoc.([]interface{})
+		if len(records) != 3 {
+			t.Fatalf("Expected records to have 3 items, but got %v", len(records))
+		}
+
+		for _, irecord := range records {
+			record := irecord.(map[string]interface{})
+			if record["userID"] != nil {
+				t.Fatalf("Expected userID to be nil, but got %v", record["userID"])
+			}
+		}
+	})
+
+	t.Run("data is not nil", func(t *testing.T) {
+		doc, err := Parse(bytes.NewReader(b))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		strIDs := []string{"100", "200", "300"}
+
+		nodes := Find(doc, "*/userID")
+		if len(nodes) != len(strIDs) {
+			t.Fatalf("Expected nodes to have %d items, but got only %d", len(strIDs), len(nodes))
+		}
+
+		for i, node := range nodes {
+			strID := strIDs[i]
+			node.SetInnerData(strIDs[i])
+
+			if strID != node.InnerData() {
+				t.Fatalf("Expected %s but got %s", strID, node.InnerData())
+			}
+		}
+
+		idoc, err := doc.JSON(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		records := idoc.([]interface{})
+		if len(records) != 3 {
+			t.Fatalf("Expected records to have 3 items, but got %v", len(records))
+		}
+
+		for i, irecord := range records {
+			record := irecord.(map[string]interface{})
+			if strIDs[i] != fmt.Sprintf("%v", record["userID"]) {
+				t.Fatalf("Expected %v to equal %v", strIDs[i], fmt.Sprintf("%v", record["userID"]))
+			}
+		}
+	})
 }
 
 func TestSetSkippedAndSkipped(t *testing.T) {
