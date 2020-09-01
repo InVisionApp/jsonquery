@@ -76,8 +76,31 @@ func (n *Node) InnerText() string {
 }
 
 func (n *Node) InnerData() interface{} {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		return child.InnerData()
+	switch n.contentType {
+	case arrayType:
+		arr := make([]interface{}, 0)
+		for _, node := range n.ChildNodes() {
+			if node.skipped {
+				continue
+			}
+
+			arr = append(arr, node.InnerData())
+		}
+		return arr
+	case objectType:
+		obj := map[string]interface{}{}
+		for _, node := range n.ChildNodes() {
+			if node.skipped {
+				continue
+			}
+
+			obj[node.Data] = node.InnerData()
+		}
+		return obj
+	}
+
+	if len(n.ChildNodes()) > 0 {
+		return n.FirstChild.idata
 	}
 
 	return n.idata

@@ -232,6 +232,51 @@ func TestJSON(t *testing.T) {
 	}
 }
 
+func TestArrayAndObjectNode(t *testing.T) {
+	assert := func(t *testing.T, expectedValue, actualValue interface{}) {
+		expectedBytes, err := json.Marshal(expectedValue)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		actualBytes, err := json.Marshal(actualValue)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(expectedBytes, actualBytes) {
+			t.Fatalf("Expected %s to equal %s", string(expectedBytes), string(actualBytes))
+		}
+	}
+
+	strJSON := `[
+		{ "id": 1, "objects": [ 1, 2, 3 ] },
+		{ "id": 2, "objects": [ 1, [ 21, 22 ], [ 31, [ 331, 332 ] ] ] },
+		{ "id": 3, "objects": [ 4, { "foo": "bar" } ] },
+		{ "id": 4, "objects": 5 },
+		{ "id": 5, "objects": "bar" }
+	]`
+
+	doc, err := Parse(strings.NewReader(strJSON))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nodes := Find(doc, "*/objects")
+
+	assert(t, nodes[0].InnerData(), []int{1, 2, 3})
+
+	value := []interface{}{1, []int{21, 22}, []interface{}{31, []int{331, 332}}}
+	assert(t, nodes[1].InnerData(), value)
+
+	value = []interface{}{4, map[string]interface{}{"foo": "bar"}}
+	assert(t, nodes[2].InnerData(), value)
+
+	assert(t, nodes[3].InnerData(), 5)
+
+	assert(t, nodes[4].InnerData(), "bar")
+}
+
 func TestFindAssetIDs(t *testing.T) {
 	originalBytes, err := ioutil.ReadFile(path.Join("testdata", "screen_v3_01.json"))
 	if err != nil {
@@ -245,8 +290,7 @@ func TestFindAssetIDs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			allNodes := Find(doc, "*/asset_id")
-			nodes := unique(allNodes)
+			nodes := Find(doc, "*/asset_id")
 
 			if len(nodes) != 1 {
 				t.Fatalf("Expected nodes to have only 1 iteam but got %v", len(nodes))
@@ -267,8 +311,7 @@ func TestFindAssetIDs(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			allNodes := Find(doc, "*/asset_id")
-			nodes := unique(allNodes)
+			nodes := Find(doc, "*/asset_id")
 
 			strAssetIDs := []string{"1", "2"}
 			if len(nodes) != len(strAssetIDs) {
@@ -489,18 +532,4 @@ func TestSetSkippedAndSkipped(t *testing.T) {
 			t.Fatalf("Expected userID to be nil, but got %v", *records[0].UserID)
 		}
 	})
-}
-
-func unique(allNodes []*Node) []*Node {
-	var tmpMap = make(map[*Node]bool)
-	for _, node := range allNodes {
-		tmpMap[node] = true
-	}
-
-	var nodes []*Node
-	for node := range tmpMap {
-		nodes = append(nodes, node)
-	}
-
-	return nodes
 }
