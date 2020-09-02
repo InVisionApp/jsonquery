@@ -180,6 +180,41 @@ func (n *Node) JSON(skipped bool) (interface{}, error) {
 	return nil, fmt.Errorf("%v type is not supported", n.contentType)
 }
 
+func (n *Node) toMap(skipped bool) (map[string]interface{}, error) {
+	if n.contentType != objectType {
+		return nil, fmt.Errorf("node is not object - %v", n.contentType)
+	}
+
+	v, jsonErr := n.JSON(skipped)
+	if jsonErr != nil {
+		return nil, jsonErr
+	}
+
+	return v.(map[string]interface{}), nil
+}
+
+func (n *Node) Maps(skipped bool) ([]map[string]interface{}, error) {
+	if n.contentType != arrayType {
+		return nil, fmt.Errorf("cannot convert Node to []map[string]interface{} - %v", n.contentType)
+	}
+
+	var records []map[string]interface{}
+	for _, node := range n.ChildNodes() {
+		if skipped && node.skipped {
+			continue
+		}
+
+		v, jsonErr := node.toMap(skipped)
+		if jsonErr != nil {
+			return nil, jsonErr
+		}
+
+		records = append(records, v)
+	}
+
+	return records, nil
+}
+
 // SelectElement finds the first of child elements with the
 // specified name.
 func (n *Node) SelectElement(name string) *Node {
@@ -220,6 +255,13 @@ func Parse(r io.Reader) (*Node, error) {
 	return parse(b)
 }
 
+func ParseFromMaps(records []map[string]interface{}) (*Node, error) {
+	doc := &Node{Type: DocumentNode, contentType: arrayType}
+	parseValue(records, doc, 1)
+
+	return doc, nil
+}
+
 func parseValue(x interface{}, top *Node, level int) {
 	addNode := func(n *Node) {
 		if n.level == top.level {
@@ -245,6 +287,14 @@ func parseValue(x interface{}, top *Node, level int) {
 
 	switch v := x.(type) {
 	case []interface{}:
+		top.contentType = arrayType
+
+		for _, vv := range v {
+			n := &Node{Type: ElementNode, level: level}
+			addNode(n)
+			parseValue(vv, n, level+1)
+		}
+	case []map[string]interface{}:
 		top.contentType = arrayType
 
 		for _, vv := range v {

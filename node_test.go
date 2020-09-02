@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -178,6 +179,60 @@ func TestLargeFloat(t *testing.T) {
 	n := doc.SelectElement("large_number")
 	if n.InnerText() != "365823929453" {
 		t.Fatalf("expected %v but %v", "365823929453", n.InnerText())
+	}
+}
+
+func TestMaps(t *testing.T) {
+	files := []string{
+		"basic.json",
+		"records.json",
+		"screen_v3_01.json",
+		"screen_v3_02.json",
+		"screen_v3_03.json",
+		"screen_v3_04.json",
+	}
+
+	for _, file := range files {
+		t.Run(file, func(t *testing.T) {
+			originalBytes, readErr := ioutil.ReadFile(path.Join("testdata", file))
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+
+			var originalMaps []map[string]interface{}
+			unmarshalErr := json.Unmarshal(originalBytes, &originalMaps)
+			if unmarshalErr != nil {
+				t.Fatal(unmarshalErr)
+			}
+
+			doc, fromMapsErr := ParseFromMaps(originalMaps)
+			if fromMapsErr != nil {
+				t.Fatal(fromMapsErr)
+			}
+
+			maps, mapsErr := doc.Maps(true)
+			if mapsErr != nil {
+				t.Fatal(mapsErr)
+			}
+
+			if len(originalMaps) != len(maps) {
+				t.Fatalf(
+					"Expected %d to equal %d",
+					len(originalMaps),
+					len(maps),
+				)
+			}
+
+			for i := range originalMaps {
+				if !reflect.DeepEqual(originalMaps[i], maps[i]) {
+					t.Fatalf(
+						"Expected %+v to equal %+v",
+						originalMaps[i],
+						maps[i],
+					)
+				}
+			}
+		})
 	}
 }
 
