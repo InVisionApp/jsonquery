@@ -28,24 +28,48 @@ const (
 )
 
 const (
-	arrayType   = contentType("array")
-	objectType  = contentType("object")
-	stringType  = contentType("string")
-	intType     = contentType("int")
-	int8Type    = contentType("int8")
-	int16Type   = contentType("int16")
-	int32Type   = contentType("int32")
-	int64Type   = contentType("int64")
-	uintType    = contentType("uint")
-	uint8Type   = contentType("uint8")
-	uint16Type  = contentType("uint16")
-	uint32Type  = contentType("uint32")
-	uint64Type  = contentType("uint64")
+	arrayType  = contentType("array")
+	objectType = contentType("object")
+
+	stringType = contentType("string")
+	boolType   = contentType("bool")
+	nullType   = contentType("null")
+
+	intType   = contentType("int")
+	int8Type  = contentType("int8")
+	int16Type = contentType("int16")
+	int32Type = contentType("int32")
+	int64Type = contentType("int64")
+
+	uintType   = contentType("uint")
+	uint8Type  = contentType("uint8")
+	uint16Type = contentType("uint16")
+	uint32Type = contentType("uint32")
+	uint64Type = contentType("uint64")
+
 	float32Type = contentType("float32")
 	float64Type = contentType("float64")
-	boolType    = contentType("bool")
-	nullType    = contentType("null")
 )
+
+var types = map[string]contentType{
+	"bool":   boolType,
+	"string": stringType,
+
+	"int":   intType,
+	"int8":  int8Type,
+	"int16": int16Type,
+	"int32": int32Type,
+	"int64": int64Type,
+
+	"uint":   uintType,
+	"uint8":  uint8Type,
+	"uint16": uint16Type,
+	"uint32": uint32Type,
+	"uint64": uint64Type,
+
+	"float32": float32Type,
+	"float64": float64Type,
+}
 
 // A Node consists of a NodeType and some Data (tag name for
 // element nodes, content for text) and are part of a tree of Nodes.
@@ -119,13 +143,22 @@ func (n *Node) InnerData() interface{} {
 }
 
 func (n *Node) SetInnerData(idata interface{}) {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		child.SetInnerData(idata)
-	}
+	if n.Type == ElementNode {
+		n.ChildNodes()[0].SetInnerData(idata)
+	} else if n.Type == TextNode {
+		n.idata = idata
+		if idata == nil {
+			n.Parent.contentType = nullType
+		} else {
+			typeName := reflect.TypeOf(idata).Name()
+			contentType, ok := types[typeName]
+			if !ok {
+				panic("SetInnerData does not support " + typeName + " type")
+			}
 
-	n.idata = idata
-	if n.Type == TextNode && idata != nil {
-		n.Data = fmt.Sprintf("%v", idata)
+			n.Parent.contentType = contentType
+			n.Data = fmt.Sprintf("%v", idata)
+		}
 	}
 }
 
