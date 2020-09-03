@@ -183,57 +183,101 @@ func TestLargeFloat(t *testing.T) {
 }
 
 func TestMaps(t *testing.T) {
-	files := []string{
-		"basic.json",
-		"records.json",
-		"screen_v3_01.json",
-		"screen_v3_02.json",
-		"screen_v3_03.json",
-		"screen_v3_04.json",
-	}
+	t.Run("parse from JSON files", func(t *testing.T) {
+		files := []string{
+			"basic.json",
+			"records.json",
+			"screen_v3_01.json",
+			"screen_v3_02.json",
+			"screen_v3_03.json",
+			"screen_v3_04.json",
+		}
 
-	for _, file := range files {
-		t.Run(file, func(t *testing.T) {
-			originalBytes, readErr := ioutil.ReadFile(path.Join("testdata", file))
-			if readErr != nil {
-				t.Fatal(readErr)
-			}
+		for _, file := range files {
+			t.Run(file, func(t *testing.T) {
+				originalBytes, readErr := ioutil.ReadFile(path.Join("testdata", file))
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
 
-			var originalMaps []map[string]interface{}
-			unmarshalErr := json.Unmarshal(originalBytes, &originalMaps)
-			if unmarshalErr != nil {
-				t.Fatal(unmarshalErr)
-			}
+				var originalMaps []map[string]interface{}
+				unmarshalErr := json.Unmarshal(originalBytes, &originalMaps)
+				if unmarshalErr != nil {
+					t.Fatal(unmarshalErr)
+				}
 
-			doc, fromMapsErr := ParseFromMaps(originalMaps)
-			if fromMapsErr != nil {
-				t.Fatal(fromMapsErr)
-			}
+				doc, fromMapsErr := ParseFromMaps(originalMaps)
+				if fromMapsErr != nil {
+					t.Fatal(fromMapsErr)
+				}
 
-			maps, mapsErr := doc.Maps(true)
-			if mapsErr != nil {
-				t.Fatal(mapsErr)
-			}
+				maps, mapsErr := doc.Maps(true)
+				if mapsErr != nil {
+					t.Fatal(mapsErr)
+				}
 
-			if len(originalMaps) != len(maps) {
-				t.Fatalf(
-					"Expected %d to equal %d",
-					len(originalMaps),
-					len(maps),
-				)
-			}
-
-			for i := range originalMaps {
-				if !reflect.DeepEqual(originalMaps[i], maps[i]) {
+				if len(originalMaps) != len(maps) {
 					t.Fatalf(
-						"Expected %+v to equal %+v",
-						originalMaps[i],
-						maps[i],
+						"Expected %d to equal %d",
+						len(originalMaps),
+						len(maps),
 					)
 				}
-			}
-		})
-	}
+
+				for i := range originalMaps {
+					if !reflect.DeepEqual(originalMaps[i], maps[i]) {
+						t.Fatalf(
+							"Expected %+v to equal %+v",
+							originalMaps[i],
+							maps[i],
+						)
+					}
+				}
+			})
+		}
+	})
+
+	t.Run("parse from array of map", func(t *testing.T) {
+		records := []map[string]interface{}{
+			{
+				"string": "string",
+				"int":    -1,
+				"int8":   int8(-1),
+				"int16":  int16(-1),
+				"int32":  int32(-1),
+				"int64":  int64(-1),
+				"uint":   uint(1),
+				"uint8":  uint8(1),
+				"uint16": uint16(1),
+				"uint32": uint32(1),
+				"uint64": uint64(1),
+				"true":   true,
+				"false":  false,
+				"nil":    nil,
+				"strArr": []string{"foo", "bar"},
+				"intArr": []int{1, 2, 3},
+				"map":    map[string]interface{}{"foo": "bar"},
+				"mapArr": []map[string]interface{}{{"foo": "bar"}},
+			},
+		}
+
+		doc, parseErr := ParseFromMaps(records)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+
+		maps, mapsErr := doc.Maps(true)
+		if mapsErr != nil {
+			t.Fatal(mapsErr)
+		}
+
+		bRecords, _ := json.Marshal(records)
+		bMaps, _ := json.Marshal(maps)
+
+		if string(bRecords) != string(bMaps) {
+			t.Fatalf("Expect %s to equal %s", string(bRecords), string(bMaps))
+		}
+	})
 }
 
 func TestJSON(t *testing.T) {
@@ -468,19 +512,19 @@ func TestSetInnerDataAndInnerData(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		strIDs := []string{"100", "200", "300"}
+		userIDs := []float64{100, 200, 300}
 
 		nodes := Find(doc, "*/userID")
-		if len(nodes) != len(strIDs) {
-			t.Fatalf("Expected nodes to have %d items, but got only %d", len(strIDs), len(nodes))
+		if len(nodes) != len(userIDs) {
+			t.Fatalf("Expected nodes to have %d items, but got only %d", len(userIDs), len(nodes))
 		}
 
 		for i, node := range nodes {
-			strID := strIDs[i]
-			node.SetInnerData(strIDs[i])
+			userID := userIDs[i]
+			node.SetInnerData(userIDs[i])
 
-			if strID != node.InnerData() {
-				t.Fatalf("Expected %s but got %s", strID, node.InnerData())
+			if userID != node.InnerData() {
+				t.Fatalf("Expected %v but got %s", userID, node.InnerData())
 			}
 		}
 
@@ -496,8 +540,8 @@ func TestSetInnerDataAndInnerData(t *testing.T) {
 
 		for i, irecord := range records {
 			record := irecord.(map[string]interface{})
-			if strIDs[i] != fmt.Sprintf("%v", record["userID"]) {
-				t.Fatalf("Expected %v to equal %v", strIDs[i], fmt.Sprintf("%v", record["userID"]))
+			if userIDs[i] != record["userID"] {
+				t.Fatalf("Expected %v to equal %v", userIDs[i], record["userID"])
 			}
 		}
 	})

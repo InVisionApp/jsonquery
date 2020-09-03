@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"sort"
 	"strconv"
 )
@@ -30,6 +31,17 @@ const (
 	arrayType   = contentType("array")
 	objectType  = contentType("object")
 	stringType  = contentType("string")
+	intType     = contentType("int")
+	int8Type    = contentType("int8")
+	int16Type   = contentType("int16")
+	int32Type   = contentType("int32")
+	int64Type   = contentType("int64")
+	uintType    = contentType("uint")
+	uint8Type   = contentType("uint8")
+	uint16Type  = contentType("uint16")
+	uint32Type  = contentType("uint32")
+	uint64Type  = contentType("uint64")
+	float32Type = contentType("float32")
 	float64Type = contentType("float64")
 	boolType    = contentType("bool")
 	nullType    = contentType("null")
@@ -134,6 +146,10 @@ func (n *Node) GetParent(level int) *Node {
 }
 
 func (n *Node) JSON(skipped bool) (interface{}, error) {
+	if n.InnerData() == nil {
+		return nil, nil
+	}
+
 	switch n.contentType {
 	case arrayType:
 		arr := make([]interface{}, 0)
@@ -163,21 +179,39 @@ func (n *Node) JSON(skipped bool) (interface{}, error) {
 			obj[node.Data] = value
 		}
 		return obj, nil
-	case float64Type:
-		if n.InnerData() == nil {
-			return nil, nil
-		}
-
-		return strconv.ParseFloat(n.InnerText(), 64)
 	case stringType:
 		return n.InnerData(), nil
+	case intType:
+		return n.InnerData().(int), nil
+	case int8Type:
+		return n.InnerData().(int8), nil
+	case int16Type:
+		return n.InnerData().(int16), nil
+	case int32Type:
+		return n.InnerData().(int32), nil
+	case int64Type:
+		return n.InnerData().(int64), nil
+	case uintType:
+		return n.InnerData().(uint), nil
+	case uint8Type:
+		return n.InnerData().(uint8), nil
+	case uint16Type:
+		return n.InnerData().(uint16), nil
+	case uint32Type:
+		return n.InnerData().(uint32), nil
+	case uint64Type:
+		return n.InnerData().(uint64), nil
+	case float32Type:
+		return n.InnerData().(float32), nil
+	case float64Type:
+		return n.InnerData().(float64), nil
 	case boolType:
 		return strconv.ParseBool(n.InnerText())
 	case nullType:
 		return nil, nil
+	default:
+		return n.InnerData(), nil
 	}
-
-	return nil, fmt.Errorf("%v type is not supported", n.contentType)
 }
 
 func (n *Node) toMap(skipped bool) (map[string]interface{}, error) {
@@ -255,9 +289,9 @@ func Parse(r io.Reader) (*Node, error) {
 	return parse(b)
 }
 
-func ParseFromMaps(records []map[string]interface{}) (*Node, error) {
+func ParseFromMaps(maps []map[string]interface{}) (*Node, error) {
 	doc := &Node{Type: DocumentNode, contentType: arrayType}
-	parseValue(records, doc, 1)
+	parseValue(maps, doc, 1)
 
 	return doc, nil
 }
@@ -285,26 +319,46 @@ func parseValue(x interface{}, top *Node, level int) {
 		}
 	}
 
+	addTextNodeFromInteger := func(v interface{}) {
+		s := fmt.Sprintf("%v", v)
+		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
+		addNode(n)
+	}
+
+	addTextNodeFromFloat := func(v float64) {
+		s := strconv.FormatFloat(v, 'f', -1, 64)
+		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
+		addNode(n)
+	}
+
+	// Handle nil value
+	if x == nil {
+		top.contentType = nullType
+		n := &Node{Data: "", Type: TextNode, level: level, idata: x}
+		addNode(n)
+
+		return
+	}
+
+	// Handle slice
+	if reflect.TypeOf(x).Kind() == reflect.Slice {
+		top.contentType = arrayType
+
+		index := 0
+		value := reflect.ValueOf(x)
+		for index < value.Len() {
+			n := &Node{Type: ElementNode, level: level}
+			addNode(n)
+			parseValue(value.Index(index).Interface(), n, level+1)
+			index++
+		}
+
+		return
+	}
+
+	// Handle basic types
 	switch v := x.(type) {
-	case []interface{}:
-		top.contentType = arrayType
-
-		for _, vv := range v {
-			n := &Node{Type: ElementNode, level: level}
-			addNode(n)
-			parseValue(vv, n, level+1)
-		}
-	case []map[string]interface{}:
-		top.contentType = arrayType
-
-		for _, vv := range v {
-			n := &Node{Type: ElementNode, level: level}
-			addNode(n)
-			parseValue(vv, n, level+1)
-		}
 	case map[string]interface{}:
-		top.contentType = objectType
-
 		// The Go’s map iteration order is random.
 		// (https://blog.golang.org/go-maps-in-action#Iteration-order)
 		var keys []string
@@ -312,6 +366,8 @@ func parseValue(x interface{}, top *Node, level int) {
 			keys = append(keys, key)
 		}
 		sort.Strings(keys)
+
+		top.contentType = objectType
 		for _, key := range keys {
 			n := &Node{Data: key, Type: ElementNode, level: level}
 			addNode(n)
@@ -319,26 +375,51 @@ func parseValue(x interface{}, top *Node, level int) {
 		}
 	case string:
 		top.contentType = stringType
-
 		n := &Node{Data: v, Type: TextNode, level: level, idata: v}
 		addNode(n)
+	case int:
+		top.contentType = intType
+		addTextNodeFromInteger(v)
+	case int8:
+		top.contentType = int8Type
+		addTextNodeFromInteger(v)
+	case int16:
+		top.contentType = int16Type
+		addTextNodeFromInteger(v)
+	case int32:
+		top.contentType = int32Type
+		addTextNodeFromInteger(v)
+	case int64:
+		top.contentType = int64Type
+		addTextNodeFromInteger(v)
+	case uint:
+		top.contentType = uintType
+		addTextNodeFromInteger(v)
+	case uint8:
+		top.contentType = uint8Type
+		addTextNodeFromInteger(v)
+	case uint16:
+		top.contentType = uint16Type
+		addTextNodeFromInteger(v)
+	case uint32:
+		top.contentType = uint32Type
+		addTextNodeFromInteger(v)
+	case uint64:
+		top.contentType = uint64Type
+		addTextNodeFromInteger(v)
+	case float32:
+		top.contentType = float32Type
+		addTextNodeFromFloat(float64(v))
 	case float64:
 		top.contentType = float64Type
-
-		s := strconv.FormatFloat(v, 'f', -1, 64)
-		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
-		addNode(n)
+		addTextNodeFromFloat(v)
 	case bool:
 		top.contentType = boolType
-
 		s := strconv.FormatBool(v)
 		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
 		addNode(n)
-	case nil:
-		top.contentType = nullType
-
-		n := &Node{Data: "", Type: TextNode, level: level, idata: v}
-		addNode(n)
+	default:
+		panic(fmt.Errorf("parseValue - %v (%s) type is not supported", v, reflect.TypeOf(v).String()))
 	}
 }
 
