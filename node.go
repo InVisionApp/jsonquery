@@ -28,8 +28,9 @@ const (
 )
 
 const (
-	arrayType  = contentType("array")
-	objectType = contentType("object")
+	interfaceType = contentType("interface")
+	arrayType     = contentType("array")
+	objectType    = contentType("object")
 
 	stringType = contentType("string")
 	boolType   = contentType("bool")
@@ -452,7 +453,10 @@ func parseValue(x interface{}, top *Node, level int) {
 		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
 		addNode(n)
 	default:
-		panic(fmt.Errorf("parseValue - %v (%s) type is not supported", v, reflect.TypeOf(v).String()))
+		top.contentType = interfaceType
+		s := fmt.Sprintf("%v", v)
+		n := &Node{Data: s, Type: TextNode, level: level, idata: v}
+		addNode(n)
 	}
 }
 
